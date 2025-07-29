@@ -1,5 +1,7 @@
 package com.example.mediaplayer.presentation.ui.screens.song_list
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,9 +12,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,7 +20,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.example.mediaplayer.domain.models.Song
+import com.example.mediaplayer.presentation.ui.screens.player.PlayerScreen
 import com.example.mediaplayer.presentation.ui.screens.player.PlayerViewModel
 import com.example.mediaplayer.presentation.ui.theme.MediaPlayerTheme
 
@@ -33,35 +35,82 @@ fun SongListScreen(
     val songs by songViewModel.songs.collectAsState()
     val currentSong by playerViewModel.currentSong.collectAsState()
     val isPlaying by playerViewModel.isPlaying.collectAsState()
+    
+    var showFullScreenPlayer by remember { mutableStateOf(false) }
 
     Box(modifier = modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = if (currentSong != null) 72.dp else 0.dp)
+        // Основной контент - список песен
+        AnimatedVisibility(
+            visible = !showFullScreenPlayer,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
         ) {
-            items(songs) { song ->
-                SongListItem(
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = if (currentSong != null) 72.dp else 0.dp)
+            ) {
+                items(songs) { song ->
+                    SongListItem(
+                        song = song,
+                        isPlaying = currentSong?.id == song.id,
+                        onPlayClick = { playerViewModel.playSong(song) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+
+        // Мини-плеер
+        currentSong?.let { song ->
+            AnimatedVisibility(
+                visible = !showFullScreenPlayer,
+                enter = slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = tween(durationMillis = 300)
+                ) + fadeIn(animationSpec = tween(durationMillis = 300)),
+                exit = slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = tween(durationMillis = 300)
+                ) + fadeOut(animationSpec = tween(durationMillis = 300)),
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                MiniPlayer(
                     song = song,
-                    isPlaying = currentSong?.id == song.id,
-                    onPlayClick = { playerViewModel.playSong(song) },
-                    modifier = Modifier.fillMaxWidth()
+                    isPlaying = isPlaying,
+                    onPlayPause = { playerViewModel.togglePlayPause() },
+                    onPlayerClick = { showFullScreenPlayer = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(horizontal = 8.dp)
                 )
             }
         }
 
-        currentSong?.let { song ->
-            MiniPlayer(
-                song = song,
-                isPlaying = isPlaying,
-                onPlayPause = { playerViewModel.togglePlayPause() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(72.dp)
-                    .align(Alignment.BottomCenter)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(horizontal = 8.dp)
-            )
+        // Полноэкранный плеер
+        AnimatedVisibility(
+            visible = showFullScreenPlayer,
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = tween(durationMillis = 300)
+            ) + fadeIn(animationSpec = tween(durationMillis = 300)),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = tween(durationMillis = 300)
+            ) + fadeOut(animationSpec = tween(durationMillis = 300)),
+            modifier = Modifier.zIndex(1f)
+        ) {
+            currentSong?.let { song ->
+                PlayerScreen(
+                    song = song,
+                    isPlaying = isPlaying,
+                    onPlayPause = { playerViewModel.togglePlayPause() },
+                    onClose = { showFullScreenPlayer = false },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
     }
 }
@@ -71,10 +120,11 @@ fun MiniPlayer(
     song: Song,
     isPlaying: Boolean,
     onPlayPause: () -> Unit,
+    onPlayerClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = modifier,
+        modifier = modifier.clickable { onPlayerClick() },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -161,6 +211,20 @@ fun SongListItemPreview() {
             song = Song(id = 1, title = "Bohemian Rhapsody", artist = "Queen", path = ""),
             isPlaying = true,
             onPlayClick = {},
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun MiniPlayerPreview() {
+    MediaPlayerTheme {
+        MiniPlayer(
+            song = Song(id = 1, title = "Bohemian Rhapsody", artist = "Queen", path = ""),
+            isPlaying = true,
+            onPlayPause = {},
+            onPlayerClick = {},
             modifier = Modifier.fillMaxWidth()
         )
     }

@@ -34,9 +34,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun playSong(song: Song) {
         viewModelScope.launch {
             _currentSong.value = song
-            exoPlayer.setMediaItem(MediaItem.fromUri(song.path))
-            exoPlayer.prepare()
-            exoPlayer.play()
+            if (exoPlayer.isPlaying) {
+                exoPlayer.pause()
+            } else {
+                exoPlayer.setMediaItem(MediaItem.fromUri(song.path))
+                exoPlayer.prepare()
+                exoPlayer.play()
+            }
         }
     }
 
