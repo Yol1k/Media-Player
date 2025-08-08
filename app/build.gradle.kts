@@ -46,6 +46,7 @@ dependencies {
     implementation("androidx.media3:media3-ui:$media3Version")
     implementation("androidx.media3:media3-ui-compose:$media3Version")
     implementation ("androidx.compose.material:material-icons-extended:1.7.8")
+    implementation("io.coil-kt:coil-compose:2.7.0")
 
 
     implementation(libs.androidx.core.ktx)

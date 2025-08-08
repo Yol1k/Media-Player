@@ -1,4 +1,4 @@
-package com.example.mediaplayer.presentation.ui.theme
+package com.example.mediaplayer.presentation.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme

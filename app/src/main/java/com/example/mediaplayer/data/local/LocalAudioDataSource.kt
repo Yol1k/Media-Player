@@ -1,6 +1,8 @@
 package com.example.mediaplayer.data.local
 
+import android.content.ContentUris
 import android.content.Context
+import android.net.Uri
 import android.provider.MediaStore
 import com.example.mediaplayer.domain.models.Song
 
@@ -28,18 +30,22 @@ class LocalAudioDataSource(private val context: Context) {
             val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
             val pathColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
             val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+            val albumIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
-                val title = cursor.getString(titleColumn) ?: "Неизвестный альбом"
+                val title = cursor.getString(titleColumn) ?: "Неизвестный трек"
                 val artist = cursor.getString(artistColumn) ?: "Неизвестный исполнитель"
                 val path = cursor.getString(pathColumn)
-                val album = cursor.getString(albumColumn)
+                val album = cursor.getString(albumColumn) ?: "Неизвестный альбом"
+                val albumId = cursor.getLong(albumIdColumn)
+                val cover = if (albumId > 0) { ContentUris.withAppendedId(Uri.parse("content://media/external/audio/albumart"), albumId) } else {null}
 
-                songs.add(Song(id = id, title = title, artist = artist, path = path, album = album))
+                songs.add(Song(id = id, title = title, artist = artist, path = path, album = album, albumId = albumId, cover = cover))
             }
         }
 
         return songs
     }
+
 }

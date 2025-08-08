@@ -17,10 +17,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.example.mediaplayer.data.local.LocalAudioDataSource
-import com.example.mediaplayer.presentation.ui.screens.player.PlayerViewModel
-import com.example.mediaplayer.presentation.ui.screens.song_list.SongListScreen
-import com.example.mediaplayer.presentation.ui.screens.song_list.SongListViewModel
-import com.example.mediaplayer.presentation.ui.theme.MediaPlayerTheme
+import com.example.mediaplayer.presentation.viewmodel.MiniPlayerViewModel
+import com.example.mediaplayer.presentation.screen.SongListScreen
+import com.example.mediaplayer.presentation.viewmodel.SongListViewModel
+import com.example.mediaplayer.presentation.theme.MediaPlayerTheme
 
 class RootActivity : ComponentActivity() {
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
@@ -51,12 +51,12 @@ class RootActivity : ComponentActivity() {
         setContent {
             MediaPlayerTheme {
                 val songViewModel = SongListViewModel(LocalAudioDataSource(this))
-                val playerViewModel = PlayerViewModel(application)
+                val miniPlayerViewModel = MiniPlayerViewModel(application)
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     SongListScreen(
                         songViewModel = songViewModel,
-                        playerViewModel = playerViewModel,
+                        miniPlayerViewModel = miniPlayerViewModel,
                         modifier = Modifier.padding(innerPadding)
                     )
                 }

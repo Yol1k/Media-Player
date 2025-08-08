@@ -1,4 +1,4 @@
-package com.example.mediaplayer.presentation.ui.theme
+package com.example.mediaplayer.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
