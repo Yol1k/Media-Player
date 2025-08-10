@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
@@ -35,6 +34,8 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,17 +47,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.example.mediaplayer.domain.models.Song
 import com.example.mediaplayer.presentation.viewmodel.MiniPlayerViewModel
-import com.example.mediaplayer.presentation.theme.MediaPlayerTheme
 import com.example.mediaplayer.presentation.viewmodel.SongListViewModel
 
 @Composable
@@ -68,7 +69,6 @@ fun SongListScreen(
     val songs by songViewModel.songs.collectAsState()
     val currentSong by miniPlayerViewModel.currentSong.collectAsState()
     val isPlaying by miniPlayerViewModel.isPlaying.collectAsState()
-    
     var showFullScreenPlayer by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -83,7 +83,6 @@ fun SongListScreen(
 
     Box(modifier = modifier.fillMaxSize(),
     ) {
-        // Основной контент - список песен
         AnimatedVisibility(
             visible = !showFullScreenPlayer,
             enter = fadeIn() + expandVertically(),
@@ -111,7 +110,6 @@ fun SongListScreen(
             }
         }
 
-        // Мини-плеер
         currentSong?.let { song ->
             AnimatedVisibility(
                 visible = !showFullScreenPlayer,
@@ -132,6 +130,10 @@ fun SongListScreen(
                     onPlayerClick = { showFullScreenPlayer = true },
                     onSkipToNextClick = { miniPlayerViewModel.skipToNext() },
                     onSkipToPreviousClick = { miniPlayerViewModel.skipToPrevious() },
+                    progress = miniPlayerViewModel.progress.collectAsState().value,
+                    currentPosition = miniPlayerViewModel.currentPosition.collectAsState().value,
+                    duration = miniPlayerViewModel.duration.collectAsState().value,
+                    onSeekTo = { position -> miniPlayerViewModel.seekTo(position) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(72.dp)
@@ -141,7 +143,6 @@ fun SongListScreen(
             }
         }
 
-        // Полноэкранный плеер
         AnimatedVisibility(
             visible = showFullScreenPlayer,
             enter = slideInVertically(
@@ -160,6 +161,8 @@ fun SongListScreen(
                     isPlaying = isPlaying,
                     onPlayPause = { miniPlayerViewModel.togglePlayPause() },
                     onClose = { showFullScreenPlayer = false },
+                    onSkipToNextClick = { miniPlayerViewModel.skipToNext() },
+                    onSkipToPreviousClick = { miniPlayerViewModel.skipToPrevious() },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -175,8 +178,44 @@ fun MiniPlayer(
     onPlayerClick: () -> Unit,
     onSkipToNextClick: () -> Unit,
     onSkipToPreviousClick: () -> Unit,
+    progress: Float,
+    currentPosition: Long,
+    duration: Long,
+    onSeekTo: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
+
+    Slider(
+        value = progress,
+        onValueChange = { newProgress ->
+            onSeekTo(newProgress.coerceIn(0f, 1f))
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(4.dp),
+        colors = SliderDefaults.colors(
+            thumbColor = Color.Transparent, // Скрываем ползунок
+            activeTrackColor = MaterialTheme.colorScheme.primary,
+            inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+        )
+    )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = currentPosition.toTimeString(),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = duration.toTimeString(),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+
     Row(
         modifier = modifier.clickable { onPlayerClick() },
         verticalAlignment = Alignment.CenterVertically,
@@ -194,6 +233,7 @@ fun MiniPlayer(
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
+
                 Text(
                     text = song.title,
                     maxLines = 1,
@@ -278,7 +318,7 @@ private fun SongListItem(
 fun AlbumCover(
     uri: Uri?,
     modifier: Modifier = Modifier.size(48.dp),
-    shape: Shape = CircleShape
+    shape: Shape = RectangleShape
 ) {
     uri?.let {
         AsyncImage(
@@ -287,60 +327,17 @@ fun AlbumCover(
             modifier = modifier.clip(shape),
             contentScale = ContentScale.Crop
         )
-    } ?: Box(
-        modifier = modifier
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clip(shape),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
+    } ?: Icon(
             imageVector = Icons.Default.MusicNote,
             contentDescription = "Нет обложки"
         )
-    }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun SongListItemPreview() {
-    MediaPlayerTheme {
-        SongListItem(
-            song = Song(
-                id = 1,
-                title = "Bohemian Rhapsody",
-                artist = "Queen",
-                album = "A Night at the Opera",
-                path = "",
-                albumId = 123,
-                cover = Uri.parse("content://media/external/audio/albumart/123")
-            ),
-            isPlaying = true,
-            onPlayClick = {}
-        )
-    }
+private fun Long.toTimeString(): String {
+    if (this <= 0L) return "00:00"
+    val seconds = (this / 1000) % 60
+    val minutes = (this / (1000 * 60)) % 60
+    return String.format("%02d:%02d", minutes, seconds)
 }
-
-@Preview(showBackground = true)
-@Composable
-fun MiniPlayerPreview() {
-    MediaPlayerTheme {
-        MiniPlayer(
-            song = Song(
-                id = 2,
-                title = "Yesterday",
-                artist = "The Beatles",
-                path = "",
-                albumId = 456,
-                cover = null
-            ),
-            isPlaying = false,
-            onPlayPause = {},
-            onPlayerClick = {},
-            onSkipToNextClick = {},
-            onSkipToPreviousClick = {},
-        )
-    }
-}
-
 
 

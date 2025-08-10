@@ -1,22 +1,44 @@
 package com.example.mediaplayer.presentation.screen
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.mediaplayer.domain.models.Song
 
@@ -25,6 +47,8 @@ fun PlayerScreen(
     song: Song,
     isPlaying: Boolean,
     onPlayPause: () -> Unit,
+    onSkipToNextClick: () -> Unit,
+    onSkipToPreviousClick: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -56,12 +80,6 @@ fun PlayerScreen(
                 )
             }
             
-            Text(
-                text = "Сейчас играет",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            
             IconButton(onClick = { /* TODO: Добавить меню */ }) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
@@ -79,34 +97,11 @@ fun PlayerScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Обложка альбома
-            val albumCoverScale by animateFloatAsState(
-                targetValue = if (isPlaying) 1.05f else 1f,
-                animationSpec = tween(durationMillis = 300),
-                label = "album_cover_scale"
+
+            AlbumCover(
+                uri = song.cover,
+                modifier = Modifier.size(300.dp)
             )
-            
-            Box(
-                modifier = Modifier
-                    .size(300.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    .graphicsLayer(
-                        scaleX = albumCoverScale,
-                        scaleY = albumCoverScale
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    modifier = Modifier.size(80.dp),
-                    contentDescription = "Музыка",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -119,11 +114,9 @@ fun PlayerScreen(
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                
-                Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
                     text = song.artist,
@@ -179,7 +172,7 @@ fun PlayerScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Кнопки управления
             Row(
@@ -189,7 +182,7 @@ fun PlayerScreen(
             ) {
                 // Кнопка предыдущего трека
                 IconButton(
-                    onClick = { /* TODO: Предыдущий трек */ },
+                    onClick = onSkipToPreviousClick,
                     modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
@@ -207,11 +200,6 @@ fun PlayerScreen(
                     modifier = Modifier.size(72.dp),
                     containerColor = MaterialTheme.colorScheme.primary
                 ) {
-                    val animatedIcon by animateFloatAsState(
-                        targetValue = if (isPlaying) 1f else 0f,
-                        animationSpec = tween(durationMillis = 200),
-                        label = "play_pause_animation"
-                    )
                     
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -223,12 +211,12 @@ fun PlayerScreen(
 
                 // Кнопка следующего трека
                 IconButton(
-                    onClick = { /* TODO: Следующий трек */ },
+                    onClick = onSkipToNextClick,
                     modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
-                        contentDescription = "Следующий",
+                        contentDescription = "Переключить на следующий трек",
                         modifier = Modifier.size(32.dp),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
@@ -275,5 +263,74 @@ fun PlayerScreen(
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PlayerScreenPlayingPreview() {
+    MaterialTheme {
+        PlayerScreen(
+            song = Song(
+                id = 1,
+                title = "Bohemian Rhapsody (Live at Wembley 1986)",
+                artist = "Queen",
+                album = "A Night at the Opera",
+                path = "/storage/emulated/0/Music/queen.mp3",
+                albumId = 123,
+                cover = Uri.parse("content://media/external/audio/albumart/123")
+            ),
+            isPlaying = true,
+            onPlayPause = {},
+            onSkipToNextClick = {},
+            onSkipToPreviousClick = {},
+            onClose = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PlayerScreenPausedPreview() {
+    MaterialTheme {
+        PlayerScreen(
+            song = Song(
+                id = 2,
+                title = "Another One Bites the Dust",
+                artist = "Queen",
+                album = "The Game",
+                path = "/storage/emulated/0/Music/queen2.mp3",
+                albumId = 124,
+                cover = null
+            ),
+            isPlaying = false,
+            onPlayPause = {},
+            onSkipToNextClick = {},
+            onSkipToPreviousClick = {},
+            onClose = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PlayerScreenUnknownAlbumPreview() {
+    MaterialTheme {
+        PlayerScreen(
+            song = Song(
+                id = 3,
+                title = "Demo Track",
+                artist = "Unknown Artist",
+                album = "Неизвестно",
+                path = "/storage/emulated/0/Music/demo.mp3",
+                albumId = 0,
+                cover = null
+            ),
+            isPlaying = true,
+            onPlayPause = {},
+            onSkipToNextClick = {},
+            onSkipToPreviousClick = {},
+            onClose = {}
+        )
     }
 }
