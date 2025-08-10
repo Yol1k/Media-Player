@@ -163,6 +163,10 @@ fun SongListScreen(
                     onClose = { showFullScreenPlayer = false },
                     onSkipToNextClick = { miniPlayerViewModel.skipToNext() },
                     onSkipToPreviousClick = { miniPlayerViewModel.skipToPrevious() },
+                    progress = miniPlayerViewModel.progress.collectAsState().value,
+                    currentPosition = miniPlayerViewModel.currentPosition.collectAsState().value,
+                    duration = miniPlayerViewModel.duration.collectAsState().value,
+                    onSeekTo = { position -> miniPlayerViewModel.seekTo(position) },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -194,7 +198,7 @@ fun MiniPlayer(
             .fillMaxWidth()
             .height(4.dp),
         colors = SliderDefaults.colors(
-            thumbColor = Color.Transparent, // Скрываем ползунок
+            thumbColor = Color.Transparent,
             activeTrackColor = MaterialTheme.colorScheme.primary,
             inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
         )

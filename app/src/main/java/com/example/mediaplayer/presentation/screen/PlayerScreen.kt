@@ -29,12 +29,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +53,10 @@ fun PlayerScreen(
     onSkipToNextClick: () -> Unit,
     onSkipToPreviousClick: () -> Unit,
     onClose: () -> Unit,
+    progress: Float,
+    currentPosition: Long,
+    duration: Long,
+    onSeekTo: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val gradient = Brush.verticalGradient(
@@ -142,31 +149,34 @@ fun PlayerScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // Прогресс-бар (заглушка)
-            LinearProgressIndicator(
-                progress = 0.3f,
+            Slider(
+                value = progress,
+                onValueChange = { newProgress ->
+                    onSeekTo(newProgress.coerceIn(0f, 1f))
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp)),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                    .height(4.dp),
+                colors = SliderDefaults.colors(
+                    thumbColor = Color.Transparent,
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                )
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Время (заглушка)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "1:23",
+                    text = currentPosition.toTimeString(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "3:45",
+                    text = duration.toTimeString(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -284,53 +294,18 @@ fun PlayerScreenPlayingPreview() {
             onPlayPause = {},
             onSkipToNextClick = {},
             onSkipToPreviousClick = {},
-            onClose = {}
+            onClose = {},
+            onSeekTo = {},
+            duration = 100000,
+            currentPosition = 1000,
+            progress = 10.0f
         )
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun PlayerScreenPausedPreview() {
-    MaterialTheme {
-        PlayerScreen(
-            song = Song(
-                id = 2,
-                title = "Another One Bites the Dust",
-                artist = "Queen",
-                album = "The Game",
-                path = "/storage/emulated/0/Music/queen2.mp3",
-                albumId = 124,
-                cover = null
-            ),
-            isPlaying = false,
-            onPlayPause = {},
-            onSkipToNextClick = {},
-            onSkipToPreviousClick = {},
-            onClose = {}
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PlayerScreenUnknownAlbumPreview() {
-    MaterialTheme {
-        PlayerScreen(
-            song = Song(
-                id = 3,
-                title = "Demo Track",
-                artist = "Unknown Artist",
-                album = "Неизвестно",
-                path = "/storage/emulated/0/Music/demo.mp3",
-                albumId = 0,
-                cover = null
-            ),
-            isPlaying = true,
-            onPlayPause = {},
-            onSkipToNextClick = {},
-            onSkipToPreviousClick = {},
-            onClose = {}
-        )
-    }
+private fun Long.toTimeString(): String {
+    if (this <= 0L) return "00:00"
+    val seconds = (this / 1000) % 60
+    val minutes = (this / (1000 * 60)) % 60
+    return String.format("%02d:%02d", minutes, seconds)
 }
