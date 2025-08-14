@@ -2,12 +2,10 @@ package com.example.mediaplayer.presentation.screen
 
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -24,7 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
@@ -32,7 +29,6 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,14 +46,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
@@ -87,62 +80,23 @@ fun SongListScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        AnimatedVisibility(
-            visible = !showFullScreenPlayer,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = if (currentSong != null) 72.dp else 0.dp)
-            ) {
-                items(
-                    items = songs,
-                    key = { it.id }
-                ) { song ->
-                    SongListItem(
-                        song = song,
-                        isPlaying = currentSong?.id == song.id,
-                        onPlayClick = {
-                            if (currentSong?.id == song.id) {
-                                miniPlayerViewModel.togglePlayPause()
-                            } else {
-                                miniPlayerViewModel.playSong(song)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+        SongList(
+            songs = songs,
+            currentSong = currentSong,
+            onPlayClick = { song ->
+                if (currentSong?.id == song.id) {
+                    miniPlayerViewModel.togglePlayPause()
+                } else {
+                    miniPlayerViewModel.playSong(song)
                 }
-            }
-        }
-
-        currentSong?.let { song ->
-            AnimatedVisibility(
-                visible = !showFullScreenPlayer,
-                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-                modifier = Modifier.align(Alignment.BottomCenter)
-            ) {
-                MiniPlayer(
-                    song = song,
-                    isPlaying = isPlaying,
-                    onPlayPause = { miniPlayerViewModel.togglePlayPause() },
-                    onPlayerClick = { showFullScreenPlayer = true },
-                    onSkipToNextClick = { miniPlayerViewModel.skipToNext() },
-                    onSkipToPreviousClick = { miniPlayerViewModel.skipToPrevious() },
-                    viewModel = miniPlayerViewModel,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(80.dp)
-                )
-            }
-        }
+            },
+            showFullScreenPlayer = showFullScreenPlayer
+        )
 
         AnimatedVisibility(
             visible = showFullScreenPlayer,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut(),
             modifier = Modifier.zIndex(1f)
         ) {
             currentSong?.let { song ->
@@ -158,13 +112,120 @@ fun SongListScreen(
                 )
             }
         }
+
+        currentSong?.let { song ->
+            Box(
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+            ) {
+                MiniPlayer(
+                    song = song,
+                    onPlayPause = { miniPlayerViewModel.togglePlayPause() },
+                    onPlayerClick = { showFullScreenPlayer = true },
+                    onSkipToNextClick = { miniPlayerViewModel.skipToNext() },
+                    onSkipToPreviousClick = { miniPlayerViewModel.skipToPrevious() },
+                    viewModel = miniPlayerViewModel,
+                )
+            }
+        }
     }
+}
+
+@Composable
+private fun SongList(
+    songs: List<Song>,
+    currentSong: Song?,
+    onPlayClick: (Song) -> Unit,
+    showFullScreenPlayer: Boolean
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = if (currentSong != null && !showFullScreenPlayer) 72.dp else 0.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(
+            items = songs,
+            key = { it.id },
+            contentType = { "song_item" }
+        ) { song ->
+            SongListItem(
+                song = song,
+                isPlaying = currentSong?.id == song.id,
+                onPlayClick = { onPlayClick(song) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SongListItem(
+    song: Song,
+    isPlaying: Boolean,
+    onPlayClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onPlayClick
+            )
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AlbumCover(
+            uri = song.cover,
+            modifier = Modifier.size(48.dp)
+        )
+
+        Spacer(Modifier.width(12.dp))
+
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = song.title,
+                fontWeight = FontWeight.Bold,
+                color = if (isPlaying) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = song.artist,
+                color = if (isPlaying) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        IconButton(onClick = onPlayClick) {
+            Icon(Icons.Default.MoreVert, contentDescription = "Действия")
+        }
+    }
+}
+
+@Composable
+fun AlbumCover(
+    uri: Uri?,
+    modifier: Modifier = Modifier.size(48.dp),
+    shape: Shape = RectangleShape
+) {
+    uri?.let {
+        AsyncImage(
+            model = uri,
+            contentDescription = null,
+            modifier = modifier.clip(shape),
+            contentScale = ContentScale.Crop
+        )
+    } ?: Icon(
+        imageVector = Icons.Default.MusicNote,
+        contentDescription = "Нет обложки"
+    )
 }
 
 @Composable
 fun MiniPlayer(
     song: Song,
-    isPlaying: Boolean,
     onPlayPause: () -> Unit,
     onPlayerClick: () -> Unit,
     onSkipToNextClick: () -> Unit,
@@ -175,6 +236,7 @@ fun MiniPlayer(
     val progress by viewModel.progress.collectAsState()
     val currentPosition by viewModel.currentPosition.collectAsState()
     val duration by viewModel.duration.collectAsState()
+    val isPlaying by viewModel.isPlaying.collectAsState()
 
     Column(
         modifier = modifier
@@ -183,7 +245,9 @@ fun MiniPlayer(
     ) {
         ProgressSlider(
             progress = progress,
-            onSeekTo = { viewModel.seekTo(it) }
+            onSeekTo = { viewModel.seekTo(it) },
+            isPlaying = isPlaying,
+            miniPlayerViewModel = viewModel
         )
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -246,70 +310,30 @@ fun MiniPlayer(
 }
 
 @Composable
-private fun SongListItem(
-    song: Song,
+fun ProgressSlider(
+    progress: Float,
+    onSeekTo: (Float) -> Unit,
     isPlaying: Boolean,
-    onPlayClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onPlayClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        AlbumCover(
-            uri = song.cover,
-            modifier = Modifier.size(48.dp)
-        )
-
-        Spacer(Modifier.width(12.dp))
-
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = song.title,
-                fontWeight = FontWeight.Bold,
-                color = if (isPlaying) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = song.artist,
-                color = if (isPlaying) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        IconButton(onClick = onPlayClick) {
-            Icon(Icons.Default.MoreVert, contentDescription = "Действия")
-        }
+    miniPlayerViewModel: MiniPlayerViewModel)
+{
+    var isSeeking by remember { mutableStateOf(false) }
+    var localProgress by remember { mutableStateOf(0f) }
+    val shownProgress by remember(isSeeking, progress, localProgress) {
+        derivedStateOf { if (isSeeking) localProgress else progress }
     }
-}
-
-@Composable
-fun AlbumCover(
-    uri: Uri?,
-    modifier: Modifier = Modifier.size(48.dp),
-    shape: Shape = RectangleShape
-) {
-    uri?.let {
-        AsyncImage(
-            model = uri,
-            contentDescription = null,
-            modifier = modifier.clip(shape),
-            contentScale = ContentScale.Crop
-        )
-    } ?: Icon(
-        imageVector = Icons.Default.MusicNote,
-        contentDescription = "Нет обложки"
-    )
-}
-
-@Composable
-fun ProgressSlider(progress: Float, onSeekTo: (Float) -> Unit) {
     Slider(
-        value = progress,
-        onValueChange = { onSeekTo(it.coerceIn(0f, 1f)) },
+        value = shownProgress,
+        onValueChange = {
+            isSeeking = true
+            localProgress = it.coerceIn(0f, 1f)
+        },
+        onValueChangeFinished = {
+            onSeekTo(localProgress)
+            if (!isPlaying) {
+                miniPlayerViewModel.togglePlayPause()
+            }
+            isSeeking = false
+        },
         modifier = Modifier.fillMaxWidth().height(4.dp),
         colors = SliderDefaults.colors(
             thumbColor = MaterialTheme.colorScheme.primary,

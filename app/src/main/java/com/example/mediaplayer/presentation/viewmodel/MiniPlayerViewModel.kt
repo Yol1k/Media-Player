@@ -54,7 +54,10 @@ class MiniPlayerViewModel(application: Application) : AndroidViewModel(applicati
                     _duration.value = exoPlayer.duration
                     if (exoPlayer.isPlaying) startProgressUpdates()
                 }
-                Player.STATE_ENDED -> stopProgressUpdates()
+                Player.STATE_ENDED -> {
+                    stopProgressUpdates()
+                    skipToNext()
+                }
             }
         }
     }
@@ -64,7 +67,7 @@ class MiniPlayerViewModel(application: Application) : AndroidViewModel(applicati
         progressUpdateJob = viewModelScope.launch {
             while (true) {
                 updateProgress()
-                delay(16)
+                delay(100)
             }
         }
     }
