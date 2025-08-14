@@ -40,14 +40,13 @@ android {
 }
 
 dependencies {
-    val media3Version = "1.7.1"
+    val media3Version = "1.8.0"
     implementation("androidx.media3:media3-exoplayer:$media3Version")
     implementation("androidx.media3:media3-session:$media3Version")
     implementation("androidx.media3:media3-ui:$media3Version")
     implementation("androidx.media3:media3-ui-compose:$media3Version")
     implementation ("androidx.compose.material:material-icons-extended:1.7.8")
     implementation("io.coil-kt:coil-compose:2.7.0")
-
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
