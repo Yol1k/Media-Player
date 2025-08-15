@@ -1,6 +1,7 @@
 package com.example.mediaplayer.presentation.screen
 
 import android.net.Uri
+import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -53,17 +54,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.media3.common.util.UnstableApi
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.mediaplayer.domain.models.Song
 import com.example.mediaplayer.presentation.viewmodel.MiniPlayerViewModel
 import com.example.mediaplayer.presentation.viewmodel.RepeatMode
 import com.example.mediaplayer.presentation.viewmodel.SongListViewModel
 import java.util.Locale
 
+@OptIn(UnstableApi::class)
 @Composable
 fun SongListScreen(
     modifier: Modifier = Modifier,
@@ -71,8 +76,7 @@ fun SongListScreen(
     miniPlayerViewModel: MiniPlayerViewModel,
 ) {
     val songs by songViewModel.songs.collectAsState()
-    val currentSong by miniPlayerViewModel.currentSong.collectAsState()
-    val isPlaying by miniPlayerViewModel.isPlaying.collectAsState()
+    val playerState by miniPlayerViewModel.playerState.collectAsState()
     var showFullScreenPlayer by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -80,7 +84,7 @@ fun SongListScreen(
     }
 
     LaunchedEffect(songs) {
-        if (songs.isNotEmpty()) {
+        if (songs.isNotEmpty() && playerState.currentSong == null) {
             miniPlayerViewModel.setPlaylist(songs)
         }
     }
@@ -88,9 +92,9 @@ fun SongListScreen(
     Box(modifier = modifier.fillMaxSize()) {
         SongList(
             songs = songs,
-            currentSong = currentSong,
+            currentSong = playerState.currentSong,
             onPlayClick = { song ->
-                if (currentSong?.id == song.id) {
+                if (playerState.currentSong?.id == song.id) {
                     miniPlayerViewModel.togglePlayPause()
                 } else {
                     miniPlayerViewModel.playSong(song)
@@ -105,10 +109,10 @@ fun SongListScreen(
             exit = fadeOut() + scaleOut(),
             modifier = Modifier.zIndex(1f)
         ) {
-            currentSong?.let { song ->
+            playerState.currentSong?.let { song ->
                 PlayerScreen(
                     song = song,
-                    isPlaying = isPlaying,
+                    isPlaying = playerState.isPlaying,
                     onPlayPause = { miniPlayerViewModel.togglePlayPause() },
                     onClose = { showFullScreenPlayer = false },
                     onSkipToNextClick = { miniPlayerViewModel.skipToNext() },
@@ -119,7 +123,7 @@ fun SongListScreen(
             }
         }
 
-        currentSong?.let { song ->
+        playerState.currentSong?.let { song ->
             Box(
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
             ) {
@@ -216,10 +220,16 @@ fun AlbumCover(
     uri: Uri?,
     shape: Shape = RectangleShape
 ) {
+    val context = LocalContext.current
     uri?.let {
         AsyncImage(
-            model = uri,
-            contentDescription = null,
+            model = ImageRequest.Builder(context)
+                .data(uri)
+                .crossfade(true)
+                .diskCacheKey(uri.toString())
+                .memoryCacheKey(uri.toString())
+                .build(),
+            contentDescription = "Обложка альбома для трека",
             modifier = modifier.size(48.dp).clip(shape),
             contentScale = ContentScale.Crop
         )
@@ -229,6 +239,7 @@ fun AlbumCover(
     )
 }
 
+@OptIn(UnstableApi::class)
 @Composable
 fun MiniPlayer(
     modifier: Modifier = Modifier,
@@ -239,73 +250,67 @@ fun MiniPlayer(
     onSkipToPreviousClick: () -> Unit,
     viewModel: MiniPlayerViewModel,
 ) {
-    val progress by viewModel.progress.collectAsState()
-    val currentPosition by viewModel.currentPosition.collectAsState()
-    val duration by viewModel.duration.collectAsState()
-    val isPlaying by viewModel.isPlaying.collectAsState()
-    val repeatMode by viewModel.repeatMode.collectAsState()
+
+    val playerState by viewModel.playerState.collectAsState()
 
     Column(
         modifier = modifier
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 8.dp)
+            .padding(horizontal = 16.dp)
     ) {
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable { onPlayerClick() }.padding(vertical = 16.dp)
+        ) {
+            AlbumCover(
+                uri = song.cover,
+                modifier = Modifier
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = song.title,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = song.artist,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
         ProgressSlider(
-            progress = progress,
-            onSeekTo = { viewModel.seekTo(it) },
-            isPlaying = isPlaying,
-            viewModel = viewModel
+            progress = playerState.progress,
+            onSeekTo = { viewModel.seekTo(it) }
         )
 
         Spacer(modifier = Modifier.height(10.dp))
 
         TimeIndicators(
-            currentPosition = currentPosition,
-            duration = duration
+            currentPosition = playerState.currentPosition,
+            duration = playerState.duration
         )
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onPlayerClick() },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                AlbumCover(
-                    uri = song.cover,
-                    modifier = Modifier.size(48.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = song.title,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = song.artist,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
             IconButton(onClick = { viewModel.toggleRepeatMode() }) {
                 Icon(
-                    imageVector = when (repeatMode) {
+                    imageVector = when (playerState.repeatMode) {
                         RepeatMode.NONE -> Icons.Default.Repeat
                         RepeatMode.ALL -> Icons.Default.RepeatOn
                         RepeatMode.ONE -> Icons.Default.RepeatOneOn
                     },
                     contentDescription = "Режим повтора",
-                    tint = when (repeatMode) {
+                    tint = when (playerState.repeatMode) {
                         RepeatMode.NONE -> MaterialTheme.colorScheme.onSurfaceVariant
                         else -> MaterialTheme.colorScheme.primary
                     }
@@ -318,14 +323,19 @@ fun MiniPlayer(
 
             IconButton(onClick = onPlayPause) {
                 Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = MaterialTheme.colorScheme.primary
+                    imageVector = if (playerState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (playerState.isPlaying) "Pause" else "Play",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(64.dp)
                 )
             }
 
             IconButton(onClick = onSkipToNextClick) {
                 Icon(Icons.Default.SkipNext, contentDescription = "Следующий трек")
+            }
+
+            IconButton(onClick = onSkipToNextClick) {
+                Icon(Icons.Default.MoreVert, contentDescription = "Действия")
             }
         }
     }
@@ -334,27 +344,19 @@ fun MiniPlayer(
 @Composable
 fun ProgressSlider(
     progress: Float,
-    onSeekTo: (Float) -> Unit,
-    isPlaying: Boolean,
-    viewModel: MiniPlayerViewModel)
+    onSeekTo: (Float) -> Unit
+)
 {
     var isSeeking by remember { mutableStateOf(false) }
-    var localProgress by remember { mutableFloatStateOf(0f) }
-    val shownProgress by remember(isSeeking, progress, localProgress) {
-        derivedStateOf { if (isSeeking) localProgress else progress }
-    }
+    var localProgress by remember { mutableFloatStateOf(progress) }
     Slider(
-        value = shownProgress,
+        value = if (isSeeking) localProgress else progress,
         onValueChange = {
             isSeeking = true
             localProgress = it.coerceIn(0f, 1f)
-            viewModel.seekTo(it)
         },
         onValueChangeFinished = {
             onSeekTo(localProgress)
-            if (!isPlaying) {
-                viewModel.togglePlayPause()
-            }
             isSeeking = false
         },
         modifier = Modifier.fillMaxWidth().height(4.dp),
