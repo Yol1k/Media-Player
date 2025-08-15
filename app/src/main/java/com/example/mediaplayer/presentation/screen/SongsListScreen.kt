@@ -27,6 +27,9 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOn
+import androidx.compose.material.icons.filled.RepeatOneOn
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Icon
@@ -40,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -56,13 +60,15 @@ import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.example.mediaplayer.domain.models.Song
 import com.example.mediaplayer.presentation.viewmodel.MiniPlayerViewModel
+import com.example.mediaplayer.presentation.viewmodel.RepeatMode
 import com.example.mediaplayer.presentation.viewmodel.SongListViewModel
+import java.util.Locale
 
 @Composable
 fun SongListScreen(
+    modifier: Modifier = Modifier,
     songViewModel: SongListViewModel,
     miniPlayerViewModel: MiniPlayerViewModel,
-    modifier: Modifier = Modifier
 ) {
     val songs by songViewModel.songs.collectAsState()
     val currentSong by miniPlayerViewModel.currentSong.collectAsState()
@@ -159,10 +165,10 @@ private fun SongList(
 
 @Composable
 private fun SongListItem(
+    modifier: Modifier = Modifier,
     song: Song,
     isPlaying: Boolean,
     onPlayClick: () -> Unit,
-    modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -206,15 +212,15 @@ private fun SongListItem(
 
 @Composable
 fun AlbumCover(
+    modifier: Modifier = Modifier,
     uri: Uri?,
-    modifier: Modifier = Modifier.size(48.dp),
     shape: Shape = RectangleShape
 ) {
     uri?.let {
         AsyncImage(
             model = uri,
             contentDescription = null,
-            modifier = modifier.clip(shape),
+            modifier = modifier.size(48.dp).clip(shape),
             contentScale = ContentScale.Crop
         )
     } ?: Icon(
@@ -225,18 +231,19 @@ fun AlbumCover(
 
 @Composable
 fun MiniPlayer(
+    modifier: Modifier = Modifier,
     song: Song,
     onPlayPause: () -> Unit,
     onPlayerClick: () -> Unit,
     onSkipToNextClick: () -> Unit,
     onSkipToPreviousClick: () -> Unit,
     viewModel: MiniPlayerViewModel,
-    modifier: Modifier = Modifier
 ) {
     val progress by viewModel.progress.collectAsState()
     val currentPosition by viewModel.currentPosition.collectAsState()
     val duration by viewModel.duration.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
+    val repeatMode by viewModel.repeatMode.collectAsState()
 
     Column(
         modifier = modifier
@@ -247,7 +254,7 @@ fun MiniPlayer(
             progress = progress,
             onSeekTo = { viewModel.seekTo(it) },
             isPlaying = isPlaying,
-            miniPlayerViewModel = viewModel
+            viewModel = viewModel
         )
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -290,6 +297,21 @@ fun MiniPlayer(
                 }
             }
 
+            IconButton(onClick = { viewModel.toggleRepeatMode() }) {
+                Icon(
+                    imageVector = when (repeatMode) {
+                        RepeatMode.NONE -> Icons.Default.Repeat
+                        RepeatMode.ALL -> Icons.Default.RepeatOn
+                        RepeatMode.ONE -> Icons.Default.RepeatOneOn
+                    },
+                    contentDescription = "Режим повтора",
+                    tint = when (repeatMode) {
+                        RepeatMode.NONE -> MaterialTheme.colorScheme.onSurfaceVariant
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                )
+            }
+
             IconButton(onClick = onSkipToPreviousClick) {
                 Icon(Icons.Default.SkipPrevious, contentDescription = "Предыдущий трек")
             }
@@ -314,10 +336,10 @@ fun ProgressSlider(
     progress: Float,
     onSeekTo: (Float) -> Unit,
     isPlaying: Boolean,
-    miniPlayerViewModel: MiniPlayerViewModel)
+    viewModel: MiniPlayerViewModel)
 {
     var isSeeking by remember { mutableStateOf(false) }
-    var localProgress by remember { mutableStateOf(0f) }
+    var localProgress by remember { mutableFloatStateOf(0f) }
     val shownProgress by remember(isSeeking, progress, localProgress) {
         derivedStateOf { if (isSeeking) localProgress else progress }
     }
@@ -326,11 +348,12 @@ fun ProgressSlider(
         onValueChange = {
             isSeeking = true
             localProgress = it.coerceIn(0f, 1f)
+            viewModel.seekTo(it)
         },
         onValueChangeFinished = {
             onSeekTo(localProgress)
             if (!isPlaying) {
-                miniPlayerViewModel.togglePlayPause()
+                viewModel.togglePlayPause()
             }
             isSeeking = false
         },
@@ -373,7 +396,7 @@ private fun Long.toTimeString(): String {
     if (this <= 0L) return "00:00"
     val seconds = (this / 1000) % 60
     val minutes = (this / (1000 * 60)) % 60
-    return String.format("%02d:%02d", minutes, seconds)
+    return String.format(Locale.US, "%02d:%02d", minutes, seconds)
 }
 
 

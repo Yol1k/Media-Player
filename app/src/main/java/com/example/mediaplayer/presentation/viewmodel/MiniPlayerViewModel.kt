@@ -1,7 +1,6 @@
 package com.example.mediaplayer.presentation.viewmodel
 
 import android.app.Application
-import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
@@ -32,7 +31,12 @@ class MiniPlayerViewModel(application: Application) : AndroidViewModel(applicati
     private val _duration = MutableStateFlow(0L)
     val duration: StateFlow<Long> = _duration.asStateFlow()
 
-    private val _playlist = mutableStateListOf<Song>()
+    private val _playlist = MutableStateFlow<List<Song>>(emptyList())
+
+    private val _currentSongIndex = MutableStateFlow<Int?>(null)
+
+    private val _repeatMode = MutableStateFlow(RepeatMode.NONE)
+    val repeatMode: StateFlow<RepeatMode> = _repeatMode.asStateFlow()
 
     private val exoPlayer: ExoPlayer by lazy {
         ExoPlayer.Builder(application).build().apply {
@@ -50,15 +54,32 @@ class MiniPlayerViewModel(application: Application) : AndroidViewModel(applicati
 
         override fun onPlaybackStateChanged(state: Int) {
             when (state) {
+                Player.STATE_IDLE -> { stopProgressUpdates() }
+                Player.STATE_BUFFERING -> { stopProgressUpdates() }
                 Player.STATE_READY -> {
                     _duration.value = exoPlayer.duration
                     if (exoPlayer.isPlaying) startProgressUpdates()
                 }
                 Player.STATE_ENDED -> {
-                    stopProgressUpdates()
-                    skipToNext()
+                    when (_repeatMode.value) {
+                        RepeatMode.ONE -> {
+                            exoPlayer.seekTo(0)
+                            exoPlayer.play()
+                        }
+
+                        RepeatMode.ALL -> skipToNext()
+                        RepeatMode.NONE -> { }
+                    }
                 }
             }
+        }
+    }
+
+    fun toggleRepeatMode() {
+        _repeatMode.value = when (_repeatMode.value) {
+            RepeatMode.NONE -> RepeatMode.ALL
+            RepeatMode.ALL -> RepeatMode.ONE
+            RepeatMode.ONE -> RepeatMode.NONE
         }
     }
 
@@ -67,7 +88,7 @@ class MiniPlayerViewModel(application: Application) : AndroidViewModel(applicati
         progressUpdateJob = viewModelScope.launch {
             while (true) {
                 updateProgress()
-                delay(100)
+                delay(16)
             }
         }
     }
@@ -78,8 +99,8 @@ class MiniPlayerViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     private fun updateProgress() {
-        val currentPos = exoPlayer.currentPosition
-        val dur = exoPlayer.duration
+        val dur = exoPlayer.duration.coerceAtLeast(1L)
+        val currentPos = exoPlayer.currentPosition.coerceIn(0, dur)
         if (dur > 0) {
             _currentPosition.value = currentPos
             _progress.value = currentPos.toFloat() / dur
@@ -87,47 +108,51 @@ class MiniPlayerViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun seekTo(position: Float) {
-        if (exoPlayer.duration > 0) {
-            val newPosition = (position * exoPlayer.duration).toLong()
-            exoPlayer.seekTo(newPosition)
+        val dur = exoPlayer.duration
+        if (dur <= 0) return
+        val newPos = (position * dur).toLong().coerceIn(0, dur)
+        _currentPosition.value = newPos
+        _progress.value = position
+
+        viewModelScope.launch {
+            exoPlayer.seekTo(newPos)
         }
     }
 
     fun setPlaylist(songs: List<Song>) {
-        _playlist.clear()
-        _playlist.addAll(songs)
+        _playlist.value = songs.toList()
     }
 
     fun skipToNext() {
-        val current = _currentSong.value ?: return
-        val currentIndex = _playlist.indexOfFirst { it.id == current.id }
+        val currentIndex = _currentSongIndex.value ?: return
+        val playlist = _playlist.value
 
-        if (currentIndex == -1) return
-
-        val nextIndex = if (currentIndex < _playlist.lastIndex) currentIndex + 1 else 0
-        _playlist.getOrNull(nextIndex)?.let { nextSong ->
-            playSong(nextSong)
+        when {
+            playlist.isEmpty() -> return
+            currentIndex < playlist.lastIndex -> playSongAtIndex(currentIndex + 1)
+            else -> playSongAtIndex(0)
         }
     }
 
     fun skipToPrevious() {
-        val current = _currentSong.value ?: return
-        val currentIndex = _playlist.indexOfFirst { it.id == current.id }
+        val currentIndex = _currentSongIndex.value ?: return
+        val playlist = _playlist.value
 
-        if (currentIndex == -1) return
-
-        val prevIndex = if (currentIndex > 0) currentIndex - 1 else _playlist.lastIndex
-        _playlist.getOrNull(prevIndex)?.let { prevSong ->
-            playSong(prevSong)
+        when {
+            playlist.isEmpty() -> return
+            currentIndex > 0 -> playSongAtIndex(currentIndex - 1)
+            else -> playSongAtIndex(playlist.lastIndex)
         }
     }
 
-    fun playSong(song: Song) {
-        if (!_playlist.contains(song)) {
-            _playlist.clear()
-            _playlist.add(song)
-        }
+    private fun playSongAtIndex(index: Int) {
+        val song = _playlist.value.getOrNull(index) ?: return
+        _currentSongIndex.value = index
+        playSong(song)
+    }
 
+    fun playSong(song: Song) {
+        _currentSongIndex.value = _playlist.value.indexOfFirst { it.id == song.id }.takeIf { it != -1 }
         viewModelScope.launch {
             exoPlayer.stop()
             exoPlayer.clearMediaItems()
@@ -154,3 +179,5 @@ class MiniPlayerViewModel(application: Application) : AndroidViewModel(applicati
         super.onCleared()
     }
 }
+
+enum class RepeatMode { NONE, ALL, ONE }
