@@ -1,12 +1,15 @@
 package com.example.mediaplayer.presentation.screen
 
+import android.content.ContentUris
 import android.net.Uri
+import android.provider.MediaStore
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -23,16 +26,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.RepeatOn
-import androidx.compose.material.icons.filled.RepeatOneOn
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,15 +46,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.media3.common.util.UnstableApi
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import com.example.mediaplayer.R
 import com.example.mediaplayer.domain.models.Song
 import com.example.mediaplayer.presentation.viewmodel.MiniPlayerViewModel
 import com.example.mediaplayer.presentation.viewmodel.RepeatMode
@@ -112,7 +106,6 @@ fun SongListScreen(
             playerState.currentSong?.let { song ->
                 PlayerScreen(
                     song = song,
-                    isPlaying = playerState.isPlaying,
                     onPlayPause = { miniPlayerViewModel.togglePlayPause() },
                     onClose = { showFullScreenPlayer = false },
                     onSkipToNextClick = { miniPlayerViewModel.skipToNext() },
@@ -125,7 +118,9 @@ fun SongListScreen(
 
         playerState.currentSong?.let { song ->
             Box(
-                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
             ) {
                 MiniPlayer(
                     song = song,
@@ -175,7 +170,7 @@ private fun SongListItem(
     onPlayClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val icon = remember { Icons.Default.MoreVert }
+    val icon = remember { R.drawable.more_vert }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -188,7 +183,7 @@ private fun SongListItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         AlbumCover(
-            uri = song.cover,
+            albumId = song.albumId,
             modifier = Modifier.size(48.dp)
         )
 
@@ -208,8 +203,8 @@ private fun SongListItem(
             )
         }
 
-        IconButton(onClick = onPlayClick) {
-            Icon(icon, contentDescription = "Действия")
+        IconButton(onClick = { }) {
+            Icon(painter = painterResource(id = icon), contentDescription = "Действия")
         }
     }
 }
@@ -217,26 +212,42 @@ private fun SongListItem(
 @Composable
 fun AlbumCover(
     modifier: Modifier = Modifier,
-    uri: Uri?,
+    albumId: Long,
     shape: Shape = RectangleShape
 ) {
     val context = LocalContext.current
-    uri?.let {
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(uri)
-                .crossfade(true)
-                .diskCacheKey(uri.toString())
-                .memoryCacheKey(uri.toString())
-                .build(),
-            contentDescription = "Обложка альбома для трека",
-            modifier = modifier.size(48.dp).clip(shape),
+    val bitmap = remember(albumId) {
+        if (albumId > 0) {
+            try {
+                val uri = ContentUris.withAppendedId(
+                    Uri.parse("content://media/external/audio/albumart"),
+                    albumId
+                )
+                MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+            } catch (e: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+    }
+
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = "Обложка альбома",
+            modifier = modifier
+                .size(48.dp)
+                .clip(shape),
             contentScale = ContentScale.Crop
         )
-    } ?: Icon(
-        imageVector = Icons.Default.MusicNote,
-        contentDescription = "Нет обложки"
-    )
+    } else {
+        Icon(
+            painter = painterResource(id = R.drawable.music_note),
+            contentDescription = "Нет обложки",
+            modifier = modifier.size(48.dp)
+        )
+    }
 }
 
 @OptIn(UnstableApi::class)
@@ -261,10 +272,12 @@ fun MiniPlayer(
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable { onPlayerClick() }.padding(vertical = 16.dp)
+            modifier = Modifier
+                .clickable { onPlayerClick() }
+                .padding(vertical = 16.dp)
         ) {
             AlbumCover(
-                uri = song.cover,
+                albumId = song.albumId,
                 modifier = Modifier
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -298,17 +311,21 @@ fun MiniPlayer(
         )
 
         Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             IconButton(onClick = { viewModel.toggleRepeatMode() }) {
                 Icon(
-                    imageVector = when (playerState.repeatMode) {
-                        RepeatMode.NONE -> Icons.Default.Repeat
-                        RepeatMode.ALL -> Icons.Default.RepeatOn
-                        RepeatMode.ONE -> Icons.Default.RepeatOneOn
-                    },
+                    painter = painterResource(
+                        id = when (playerState.repeatMode) {
+                            RepeatMode.NONE -> R.drawable.repeat
+                            RepeatMode.ALL -> R.drawable.repeat_on
+                            RepeatMode.ONE -> R.drawable.repeat_one
+                        }
+                    ),
                     contentDescription = "Режим повтора",
                     tint = when (playerState.repeatMode) {
                         RepeatMode.NONE -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -318,12 +335,12 @@ fun MiniPlayer(
             }
 
             IconButton(onClick = onSkipToPreviousClick) {
-                Icon(Icons.Default.SkipPrevious, contentDescription = "Предыдущий трек")
+                Icon(painter = painterResource(id = R.drawable.skip_previous), contentDescription = "Предыдущий трек")
             }
 
             IconButton(onClick = onPlayPause) {
                 Icon(
-                    imageVector = if (playerState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    painter = painterResource(id = if (playerState.isPlaying) R.drawable.pause else R.drawable.play_arrow),
                     contentDescription = if (playerState.isPlaying) "Pause" else "Play",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(64.dp)
@@ -331,11 +348,11 @@ fun MiniPlayer(
             }
 
             IconButton(onClick = onSkipToNextClick) {
-                Icon(Icons.Default.SkipNext, contentDescription = "Следующий трек")
+                Icon(painter = painterResource(id = R.drawable.skip_next), contentDescription = "Следующий трек")
             }
 
-            IconButton(onClick = onSkipToNextClick) {
-                Icon(Icons.Default.MoreVert, contentDescription = "Действия")
+            IconButton(onClick = { }) {
+                Icon(painter = painterResource(id = R.drawable.more_vert), contentDescription = "Действия")
             }
         }
     }
@@ -359,7 +376,9 @@ fun ProgressSlider(
             onSeekTo(localProgress)
             isSeeking = false
         },
-        modifier = Modifier.fillMaxWidth().height(4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(4.dp),
         colors = SliderDefaults.colors(
             thumbColor = MaterialTheme.colorScheme.primary,
             activeTrackColor = MaterialTheme.colorScheme.primary,

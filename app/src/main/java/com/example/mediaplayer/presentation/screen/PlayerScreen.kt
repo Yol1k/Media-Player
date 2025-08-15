@@ -11,12 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -26,9 +20,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
+import com.example.mediaplayer.R
 import com.example.mediaplayer.domain.models.Song
 import com.example.mediaplayer.presentation.viewmodel.MiniPlayerViewModel
 
@@ -36,7 +32,6 @@ import com.example.mediaplayer.presentation.viewmodel.MiniPlayerViewModel
 @Composable
 fun PlayerScreen(
     song: Song,
-    isPlaying: Boolean,
     onPlayPause: () -> Unit,
     onClose: () -> Unit,
     onSkipToNextClick: () -> Unit,
@@ -58,15 +53,13 @@ fun PlayerScreen(
             horizontalArrangement = Arrangement.Start
         ) {
             IconButton(onClick = onClose) {
-                Icon(Icons.Default.Close, contentDescription = "Закрыть")
+                Icon(painter = painterResource(id = R.drawable.close), contentDescription = "Закрыть")
             }
         }
 
         AlbumCover(
-            uri = song.cover,
-            modifier = Modifier
-                .size(300.dp)
-                .padding(16.dp)
+            albumId = song.albumId,
+            modifier = Modifier .size(300.dp).padding(16.dp)
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -107,7 +100,7 @@ fun PlayerScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onSkipToPreviousClick) {
-                Icon(Icons.Default.SkipPrevious, contentDescription = "Предыдущий трек")
+                Icon(painter = painterResource(id = R.drawable.skip_previous), contentDescription = "Предыдущий трек")
             }
 
             IconButton(
@@ -115,15 +108,15 @@ fun PlayerScreen(
                 modifier = Modifier.size(72.dp)
             ) {
                 Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    painter = painterResource(id = if (playerState.isPlaying) R.drawable.pause else R.drawable.play_arrow),
+                    contentDescription = if (playerState.isPlaying) "Pause" else "Play",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(64.dp)
                 )
             }
 
             IconButton(onClick = onSkipToNextClick) {
-                Icon(Icons.Default.SkipNext, contentDescription = "Следующий трек")
+                Icon(painter = painterResource(id = R.drawable.skip_next), contentDescription = "Следующий трек")
             }
         }
     }
