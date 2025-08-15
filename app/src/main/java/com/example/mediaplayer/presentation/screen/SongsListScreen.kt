@@ -150,7 +150,7 @@ private fun SongList(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(bottom = if (currentSong != null && !showFullScreenPlayer) 72.dp else 0.dp),
+            .padding(bottom = if (currentSong != null && !showFullScreenPlayer) 100.dp else 0.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(
@@ -175,7 +175,7 @@ private fun SongListItem(
     onPlayClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-
+    val icon = remember { Icons.Default.MoreVert }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -209,7 +209,7 @@ private fun SongListItem(
         }
 
         IconButton(onClick = onPlayClick) {
-            Icon(Icons.Default.MoreVert, contentDescription = "Действия")
+            Icon(icon, contentDescription = "Действия")
         }
     }
 }

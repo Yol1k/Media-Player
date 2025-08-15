@@ -36,9 +36,10 @@ class MiniPlayerViewModel(application: Application) : AndroidViewModel(applicati
                         BUFFER_FOR_PLAYBACK_MS,
                         BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
                     )
+                    .setPrioritizeTimeOverSizeThresholds(true)
                     .build()
             )
-            .setSeekParameters(SeekParameters.CLOSEST_SYNC)
+            .setSeekParameters(SeekParameters.EXACT)
             .build()
             .apply {
                 addListener(playerListener)
@@ -50,8 +51,8 @@ class MiniPlayerViewModel(application: Application) : AndroidViewModel(applicati
     private var wasPlayingBeforeSeek = false
 
     companion object {
-        private const val MIN_BUFFER_MS = 30000
-        private const val MAX_BUFFER_MS = 60000
+        private const val MIN_BUFFER_MS = 15000
+        private const val MAX_BUFFER_MS = 30000
         private const val BUFFER_FOR_PLAYBACK_MS = 1000
         private const val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 2000
         private const val PROGRESS_UPDATE_INTERVAL_MS = 16L
@@ -187,7 +188,7 @@ class MiniPlayerViewModel(application: Application) : AndroidViewModel(applicati
                 exoPlayer.play()
             }
             RepeatMode.ALL -> skipToNext()
-            RepeatMode.NONE -> {}
+            RepeatMode.NONE -> skipToNext()
         }
     }
 

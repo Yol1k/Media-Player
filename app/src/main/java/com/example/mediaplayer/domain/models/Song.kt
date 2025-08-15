@@ -6,7 +6,7 @@ data class Song(
     val id: Long,
     val title: String,
     val artist: String,
-    val album: String = "Неизвестно",
+    val album: String,
     val path: String,
     val albumId: Long,
     val cover: Uri? = null,
