@@ -72,6 +72,7 @@ fun SongListScreen(
     val songs by songViewModel.songs.collectAsState()
     val playerState by miniPlayerViewModel.playerState.collectAsState()
     var showFullScreenPlayer by remember { mutableStateOf(false) }
+    var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
 
     LaunchedEffect(Unit) {
         songViewModel.loadSongs()
@@ -94,7 +95,8 @@ fun SongListScreen(
                     miniPlayerViewModel.playSong(song)
                 }
             },
-            showFullScreenPlayer = showFullScreenPlayer
+            showFullScreenPlayer = showFullScreenPlayer,
+            onOptionsClick = { song -> selectedSongForOptions = song }
         )
 
         AnimatedVisibility(
@@ -132,6 +134,28 @@ fun SongListScreen(
                 )
             }
         }
+
+        AnimatedVisibility(
+            visible = selectedSongForOptions != null,
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut(),
+            modifier = Modifier
+                .zIndex(2f)
+                .align(Alignment.BottomCenter)
+        ) {
+            selectedSongForOptions?.let { song ->
+                SongOptionsDialog(
+                    onDismiss = { selectedSongForOptions = null },
+                    onAddToPlaylist = {
+                        selectedSongForOptions = null
+                    },
+                    onShare = {
+                        selectedSongForOptions = null
+                    },
+                    song = song
+                )
+            }
+        }
     }
 }
 
@@ -140,12 +164,13 @@ private fun SongList(
     songs: List<Song>,
     currentSong: Song?,
     onPlayClick: (Song) -> Unit,
-    showFullScreenPlayer: Boolean
+    showFullScreenPlayer: Boolean,
+    onOptionsClick: (Song) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(bottom = if (currentSong != null && !showFullScreenPlayer) 100.dp else 0.dp),
+            .padding(bottom = if (currentSong != null && !showFullScreenPlayer) 175.dp else 0.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(
@@ -156,7 +181,8 @@ private fun SongList(
             SongListItem(
                 song = song,
                 isPlaying = currentSong?.id == song.id,
-                onPlayClick = { onPlayClick(song) }
+                onPlayClick = { onPlayClick(song) },
+                onOptionsClick = { onOptionsClick (song) }
             )
         }
     }
@@ -168,9 +194,11 @@ private fun SongListItem(
     song: Song,
     isPlaying: Boolean,
     onPlayClick: () -> Unit,
+    onOptionsClick: (Song) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val icon = remember { R.drawable.more_vert }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -202,8 +230,7 @@ private fun SongListItem(
                 else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-
-        IconButton(onClick = { }) {
+        IconButton(onClick = { onOptionsClick(song) }) {
             Icon(painter = painterResource(id = icon), contentDescription = "Действия")
         }
     }
@@ -313,7 +340,7 @@ fun MiniPlayer(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp),
+                .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -418,6 +445,68 @@ private fun Long.toTimeString(): String {
     val seconds = (this / 1000) % 60
     val minutes = (this / (1000 * 60)) % 60
     return String.format(Locale.US, "%02d:%02d", minutes, seconds)
+}
+
+@Composable
+fun SongOptionsDialog(
+    modifier: Modifier = Modifier,
+    song: Song,
+    onDismiss: () -> Unit,
+    onAddToPlaylist: () -> Unit,
+    onShare: () -> Unit
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = song.title,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        // Кнопки действий
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onAddToPlaylist)
+                    .padding(vertical = 12.dp, horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.playlist_add),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(Modifier.width(16.dp))
+                Text("Добавить в плейлист")
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onShare)
+                    .padding(vertical = 12.dp, horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.share),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(Modifier.width(16.dp))
+                Text("Поделиться")
+            }
+        }
+    }
 }
 
 
