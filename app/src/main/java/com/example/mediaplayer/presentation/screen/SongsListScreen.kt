@@ -43,10 +43,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -99,25 +105,6 @@ fun SongListScreen(
             onOptionsClick = { song -> selectedSongForOptions = song }
         )
 
-        AnimatedVisibility(
-            visible = showFullScreenPlayer,
-            enter = fadeIn() + scaleIn(),
-            exit = fadeOut() + scaleOut(),
-            modifier = Modifier.zIndex(1f)
-        ) {
-            playerState.currentSong?.let { song ->
-                PlayerScreen(
-                    song = song,
-                    onPlayPause = { miniPlayerViewModel.togglePlayPause() },
-                    onClose = { showFullScreenPlayer = false },
-                    onSkipToNextClick = { miniPlayerViewModel.skipToNext() },
-                    onSkipToPreviousClick = { miniPlayerViewModel.skipToPrevious() },
-                    viewModel = miniPlayerViewModel,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
-
         playerState.currentSong?.let { song ->
             Box(
                 modifier = Modifier
@@ -130,30 +117,69 @@ fun SongListScreen(
                     onPlayerClick = { showFullScreenPlayer = true },
                     onSkipToNextClick = { miniPlayerViewModel.skipToNext() },
                     onSkipToPreviousClick = { miniPlayerViewModel.skipToPrevious() },
+                    onOptionsClick = { song -> selectedSongForOptions = song },
                     viewModel = miniPlayerViewModel,
                 )
             }
         }
-
         AnimatedVisibility(
-            visible = selectedSongForOptions != null,
+            visible = showFullScreenPlayer,
             enter = fadeIn() + scaleIn(),
             exit = fadeOut() + scaleOut(),
-            modifier = Modifier
-                .zIndex(2f)
-                .align(Alignment.BottomCenter)
+            modifier = Modifier.zIndex(1f)
         ) {
-            selectedSongForOptions?.let { song ->
-                SongOptionsDialog(
-                    onDismiss = { selectedSongForOptions = null },
-                    onAddToPlaylist = {
-                        selectedSongForOptions = null
-                    },
-                    onShare = {
-                        selectedSongForOptions = null
-                    },
-                    song = song
+            playerState.currentSong?.let { song ->
+
+                AlbumCover(
+                    albumId = song.albumId,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            renderEffect = BlurEffect(100f, 100f, TileMode.Mirror)
+                        }
+                        .drawWithContent {
+                            drawContent()
+                            drawRect(Color.Black.copy(alpha = 0.8f))
+                        }
                 )
+
+                PlayerScreen(
+                    song = song,
+                    onPlayPause = { miniPlayerViewModel.togglePlayPause() },
+                    onClose = { showFullScreenPlayer = false },
+                    onSkipToNextClick = { miniPlayerViewModel.skipToNext() },
+                    onSkipToPreviousClick = { miniPlayerViewModel.skipToPrevious() },
+                    viewModel = miniPlayerViewModel,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (selectedSongForOptions != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f))
+                        .clickable { selectedSongForOptions = null }
+                )
+            }
+
+            AnimatedVisibility(
+                visible = selectedSongForOptions != null,
+                enter = fadeIn(),
+                modifier = Modifier
+                    .zIndex(3f)
+                    .align(Alignment.BottomCenter)
+            ) {
+                selectedSongForOptions?.let { song ->
+                    SongOptionsDialog(
+                        onDismiss = { },
+                        onAddToPlaylist = { },
+                        onShare = { },
+                        song = song
+                    )
+                }
             }
         }
     }
@@ -182,7 +208,7 @@ private fun SongList(
                 song = song,
                 isPlaying = currentSong?.id == song.id,
                 onPlayClick = { onPlayClick(song) },
-                onOptionsClick = { onOptionsClick (song) }
+                onOptionsClick = { onOptionsClick(song) }
             )
         }
     }
@@ -286,6 +312,7 @@ fun MiniPlayer(
     onPlayerClick: () -> Unit,
     onSkipToNextClick: () -> Unit,
     onSkipToPreviousClick: () -> Unit,
+    onOptionsClick: (Song) -> Unit,
     viewModel: MiniPlayerViewModel,
 ) {
 
@@ -362,7 +389,10 @@ fun MiniPlayer(
             }
 
             IconButton(onClick = onSkipToPreviousClick) {
-                Icon(painter = painterResource(id = R.drawable.skip_previous), contentDescription = "Предыдущий трек")
+                Icon(
+                    painter = painterResource(id = R.drawable.skip_previous),
+                    contentDescription = "Предыдущий трек"
+                )
             }
 
             IconButton(onClick = onPlayPause) {
@@ -375,11 +405,17 @@ fun MiniPlayer(
             }
 
             IconButton(onClick = onSkipToNextClick) {
-                Icon(painter = painterResource(id = R.drawable.skip_next), contentDescription = "Следующий трек")
+                Icon(
+                    painter = painterResource(id = R.drawable.skip_next),
+                    contentDescription = "Следующий трек"
+                )
             }
 
-            IconButton(onClick = { }) {
-                Icon(painter = painterResource(id = R.drawable.more_vert), contentDescription = "Действия")
+            IconButton(onClick = { onOptionsClick(song) }) {
+                Icon(
+                    painter = painterResource(id = R.drawable.more_vert),
+                    contentDescription = "Действия"
+                )
             }
         }
     }
@@ -389,8 +425,7 @@ fun MiniPlayer(
 fun ProgressSlider(
     progress: Float,
     onSeekTo: (Float) -> Unit
-)
-{
+) {
     var isSeeking by remember { mutableStateOf(false) }
     var localProgress by remember { mutableFloatStateOf(progress) }
     Slider(
@@ -455,8 +490,14 @@ fun SongOptionsDialog(
     onAddToPlaylist: () -> Unit,
     onShare: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Column(
         modifier = modifier
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = {}
+            )
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
             .padding(16.dp),
@@ -468,45 +509,80 @@ fun SongOptionsDialog(
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        // Кнопки действий
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp, horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onAddToPlaylist)
-                    .padding(vertical = 12.dp, horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            IconButton(
+                onClick = onAddToPlaylist,
+                modifier = Modifier.size(48.dp)
             ) {
                 Icon(
                     painter = painterResource(R.drawable.playlist_add),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp)
+                    contentDescription = "Добавить в плейлист"
                 )
-                Spacer(Modifier.width(16.dp))
-                Text("Добавить в плейлист")
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onShare)
-                    .padding(vertical = 12.dp, horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            IconButton(
+                onClick = onShare,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    modifier = Modifier.size(60.dp),
+                    painter = painterResource(R.drawable.share),
+                    contentDescription = "Поделиться"
+                )
+            }
+
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.close),
+                    contentDescription = "Закрыть"
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp, horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            IconButton(
+                onClick = onAddToPlaylist,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.playlist_add),
+                    contentDescription = "Добавить в плейлист"
+                )
+            }
+
+            IconButton(
+                onClick = onShare,
+                modifier = Modifier.size(48.dp)
             ) {
                 Icon(
                     painter = painterResource(R.drawable.share),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp)
+                    contentDescription = "Поделиться"
                 )
-                Spacer(Modifier.width(16.dp))
-                Text("Поделиться")
+            }
+
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.delete),
+                    contentDescription = "Удалить"
+                )
             }
         }
     }
 }
-
 

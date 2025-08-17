@@ -28,6 +28,12 @@ android {
             )
             signingConfig = signingConfigs.getByName("debug")
         }
+
+        debug {
+            isMinifyEnabled = false
+            isShrinkResources = false
+            splits.abi.isEnable = false
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -44,7 +50,6 @@ android {
 dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)
-    implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.ui.compose)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
