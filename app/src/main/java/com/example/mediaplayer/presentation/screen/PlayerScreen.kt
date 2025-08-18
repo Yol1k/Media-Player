@@ -68,7 +68,7 @@ fun PlayerScreen(
 
         AlbumCover(
             albumId = song.albumId,
-            modifier = Modifier .size(300.dp).padding(16.dp),
+            modifier = Modifier.size(400.dp).padding(16.dp),
             shape = CircleShape
         )
 

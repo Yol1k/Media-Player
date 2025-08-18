@@ -55,7 +55,7 @@ class MiniPlayerViewModel(application: Application) : AndroidViewModel(applicati
         private const val MAX_BUFFER_MS = 30000
         private const val BUFFER_FOR_PLAYBACK_MS = 1000
         private const val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 2000
-        private const val PROGRESS_UPDATE_INTERVAL_MS = 16L
+        private const val PROGRESS_UPDATE_INTERVAL_MS = 200L
     }
 
     private val playerListener = object : Player.Listener {

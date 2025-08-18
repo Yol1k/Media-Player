@@ -43,16 +43,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -129,29 +124,17 @@ fun SongListScreen(
             modifier = Modifier.zIndex(1f)
         ) {
             playerState.currentSong?.let { song ->
-
-                AlbumCover(
-                    albumId = song.albumId,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            renderEffect = BlurEffect(100f, 100f, TileMode.Mirror)
-                        }
-                        .drawWithContent {
-                            drawContent()
-                            drawRect(Color.Black.copy(alpha = 0.8f))
-                        }
-                )
-
-                PlayerScreen(
-                    song = song,
-                    onPlayPause = { miniPlayerViewModel.togglePlayPause() },
-                    onClose = { showFullScreenPlayer = false },
-                    onSkipToNextClick = { miniPlayerViewModel.skipToNext() },
-                    onSkipToPreviousClick = { miniPlayerViewModel.skipToPrevious() },
-                    viewModel = miniPlayerViewModel,
-                    modifier = Modifier.fillMaxSize()
-                )
+                Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
+                    PlayerScreen(
+                        song = song,
+                        onPlayPause = { miniPlayerViewModel.togglePlayPause() },
+                        onClose = { showFullScreenPlayer = false },
+                        onSkipToNextClick = { miniPlayerViewModel.skipToNext() },
+                        onSkipToPreviousClick = { miniPlayerViewModel.skipToPrevious() },
+                        viewModel = miniPlayerViewModel,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
 
@@ -223,7 +206,6 @@ private fun SongListItem(
     onOptionsClick: (Song) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val icon = remember { R.drawable.more_vert }
 
     Row(
         modifier = modifier
@@ -257,7 +239,7 @@ private fun SongListItem(
             )
         }
         IconButton(onClick = { onOptionsClick(song) }) {
-            Icon(painter = painterResource(id = icon), contentDescription = "Действия")
+            Icon(painter = painterResource(id = R.drawable.more_vert), contentDescription = "Действия")
         }
     }
 }
